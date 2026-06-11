@@ -36,9 +36,17 @@ export default function BoardPage({ roomCode, myName, isHost }: Props) {
     return () => clearInterval(interval)
   }, [fetchBoard])
 
+  useEffect(() => {
+    if (roomCode) {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('room') !== roomCode) {
+        window.history.replaceState(null, '', `?room=${roomCode}`)
+      }
+    }
+  }, [roomCode])
+
   const handleCopyCode = () => {
-    const url = `${window.location.origin}?room=${roomCode}`
-    navigator.clipboard.writeText(url)
+    navigator.clipboard.writeText(window.location.href)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
