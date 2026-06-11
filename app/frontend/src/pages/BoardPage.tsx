@@ -94,12 +94,12 @@ export default function BoardPage({ roomCode, myName, isHost }: Props) {
         {/* 경기 목록 탭 */}
         {tab === 'matches' && (
           <div className="space-y-4">
-            {board.matches.map(match => (
+            {(board.matches ?? []).map(match => (
               <MatchCard
                 key={match.id}
                 roomCode={roomCode}
                 match={match}
-                predictions={board.predictions}
+                predictions={board.predictions ?? []}
                 myName={myName}
                 isHost={isHost}
                 onUpdated={fetchBoard}
@@ -148,7 +148,7 @@ export default function BoardPage({ roomCode, myName, isHost }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {board.standings.map((s, i) => (
+                {(board.standings ?? []).map((s, i) => (
                   <tr key={s.participant_name} className={`border-t ${s.participant_name === myName ? 'bg-blue-50' : ''}`}>
                     <td className="px-4 py-3 font-bold text-gray-400">{i + 1}</td>
                     <td className="px-4 py-3 font-medium text-gray-800">
