@@ -17,13 +17,14 @@ export default function BoardPage({ roomCode, myName, isHost }: Props) {
   const [newOpponent, setNewOpponent] = useState('')
   const [newDate, setNewDate] = useState('')
   const [addLoading, setAddLoading] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const fetchBoard = useCallback(async () => {
     try {
       const data = await getBoard(roomCode)
       setBoard(data)
     } catch {
-      // 에러 무시 (폴링 중 일시적 실패)
+      // 폴링 중 일시적 실패 무시
     }
   }, [roomCode])
 
@@ -42,30 +43,49 @@ export default function BoardPage({ roomCode, myName, isHost }: Props) {
       setNewOpponent('')
       setNewDate('')
       fetchBoard()
-    } finally {
-      setAddLoading(false)
-    }
+    } finally { setAddLoading(false) }
+  }
+
+  const handleCopyCode = () => {
+    navigator.clipboard.writeText(roomCode)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   if (!board) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-400">로딩 중...</p>
+      <div className="min-h-screen bg-[#0a0e1a] flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl mb-3 animate-bounce">⚽</div>
+          <p className="text-gray-400 text-sm">로딩 중...</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#0a0e1a] text-white">
       {/* 헤더 */}
-      <div className="bg-blue-800 text-white px-4 py-4 sticky top-0 z-10 shadow">
-        <div className="max-w-lg mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="font-bold text-lg">⚽ MatchScore</h1>
-            <p className="text-blue-200 text-xs">방 코드: <span className="font-mono font-bold">{roomCode}</span></p>
+      <div className="sticky top-0 z-20 bg-[#0a0e1a]/80 backdrop-blur-xl border-b border-white/5">
+        <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">⚽</span>
+            <div>
+              <h1 className="font-black text-base leading-tight">Match<span className="text-green-400">Score</span></h1>
+              <p className="text-gray-500 text-xs">2026 FIFA 월드컵</p>
+            </div>
           </div>
-          <div className="text-right text-xs text-blue-200">
-            <p>{myName} {isHost && <span className="bg-yellow-400 text-yellow-900 px-1 rounded text-xs">방장</span>}</p>
+
+          <div className="flex items-center gap-2">
+            <button onClick={handleCopyCode}
+              className="flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl px-3 py-1.5 transition-all">
+              <span className="font-mono font-black text-green-400 tracking-widest text-sm">{roomCode}</span>
+              <span className="text-gray-500 text-xs">{copied ? '복사됨' : '복사'}</span>
+            </button>
+            <div className="text-right">
+              <p className="text-xs font-semibold text-white">{myName}</p>
+              {isHost && <p className="text-xs text-yellow-400 font-bold">방장</p>}
+            </div>
           </div>
         </div>
       </div>
@@ -80,20 +100,22 @@ export default function BoardPage({ roomCode, myName, isHost }: Props) {
         />
 
         {/* 탭 */}
-        <div className="flex rounded-lg overflow-hidden border border-gray-200 bg-white">
+        <div className="flex bg-white/5 rounded-2xl p-1">
           {(['matches', 'standings'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                tab === t ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-50'
+              className={`flex-1 py-2.5 text-sm font-semibold rounded-xl transition-all ${
+                tab === t
+                  ? 'bg-white/10 text-white shadow'
+                  : 'text-gray-500 hover:text-gray-300'
               }`}>
-              {t === 'matches' ? '경기 목록' : '순위'}
+              {t === 'matches' ? '경기 목록' : '순위표'}
             </button>
           ))}
         </div>
 
-        {/* 경기 목록 탭 */}
+        {/* 경기 목록 */}
         {tab === 'matches' && (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {(board.matches ?? []).map(match => (
               <MatchCard
                 key={match.id}
@@ -106,62 +128,71 @@ export default function BoardPage({ roomCode, myName, isHost }: Props) {
               />
             ))}
 
-            {/* 방장: 경기 추가 */}
             {isHost && (
+              showAddMatch ? (
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3">
+                  <p className="text-sm font-bold text-white">토너먼트 경기 추가</p>
+                  <input className="w-full bg-white/10 border border-white/10 rounded-xl px-3 py-2.5 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-green-500"
+                    placeholder="상대팀 (예: 포르투갈)" value={newOpponent}
+                    onChange={e => setNewOpponent(e.target.value)} />
+                  <input className="w-full bg-white/10 border border-white/10 rounded-xl px-3 py-2.5 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-green-500"
+                    placeholder="경기 일시 (예: 2026-06-28 21:00 KST)" value={newDate}
+                    onChange={e => setNewDate(e.target.value)} />
+                  <div className="flex gap-2">
+                    <button onClick={() => setShowAddMatch(false)}
+                      className="flex-1 bg-white/5 border border-white/10 text-gray-300 rounded-xl py-2.5 text-sm font-semibold">취소</button>
+                    <button onClick={handleAddMatch} disabled={addLoading}
+                      className="flex-1 bg-green-500 hover:bg-green-400 disabled:opacity-50 text-white rounded-xl py-2.5 text-sm font-bold">추가</button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => setShowAddMatch(true)}
+                  className="w-full border-2 border-dashed border-white/10 hover:border-green-500/50 text-gray-500 hover:text-green-400 rounded-2xl py-4 text-sm font-semibold transition-all">
+                  + 토너먼트 경기 추가
+                </button>
+              )
+            )}
+          </div>
+        )}
+
+        {/* 순위표 */}
+        {tab === 'standings' && (
+          <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-white/5">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">참가자 순위</p>
+            </div>
+            {(board.standings ?? []).length === 0 ? (
+              <p className="text-gray-500 text-sm text-center py-8">아직 정산된 경기가 없습니다</p>
+            ) : (
               <div>
-                {showAddMatch ? (
-                  <div className="bg-white rounded-xl shadow p-4 space-y-3">
-                    <p className="font-medium text-sm text-gray-700">토너먼트 경기 추가</p>
-                    <input className="w-full border rounded-lg px-3 py-2 text-sm"
-                      placeholder="상대팀 (예: 포르투갈)" value={newOpponent}
-                      onChange={e => setNewOpponent(e.target.value)} />
-                    <input className="w-full border rounded-lg px-3 py-2 text-sm"
-                      placeholder="경기 일시 (예: 2026-06-28 21:00 KST)" value={newDate}
-                      onChange={e => setNewDate(e.target.value)} />
-                    <div className="flex gap-2">
-                      <button onClick={() => setShowAddMatch(false)}
-                        className="flex-1 border border-gray-300 text-gray-600 rounded-lg py-2 text-sm">취소</button>
-                      <button onClick={handleAddMatch} disabled={addLoading}
-                        className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-sm disabled:opacity-50">추가</button>
+                {(board.standings ?? []).map((s, i) => (
+                  <div key={s.participant_name}
+                    className={`flex items-center justify-between px-4 py-3 border-b border-white/5 last:border-0 ${s.participant_name === myName ? 'bg-blue-500/10' : ''}`}>
+                    <div className="flex items-center gap-3">
+                      <span className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-black ${
+                        i === 0 ? 'bg-yellow-400 text-yellow-900'
+                        : i === 1 ? 'bg-gray-400 text-gray-900'
+                        : i === 2 ? 'bg-orange-600 text-white'
+                        : 'bg-white/10 text-gray-400'
+                      }`}>{i + 1}</span>
+                      <div>
+                        <p className="font-semibold text-sm text-white">
+                          {s.participant_name}
+                          {s.participant_name === myName && <span className="ml-1 text-blue-400 text-xs">(나)</span>}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-green-400 font-black text-base">{s.correct_count}<span className="text-xs font-normal text-gray-500 ml-1">적중</span></p>
                     </div>
                   </div>
-                ) : (
-                  <button onClick={() => setShowAddMatch(true)}
-                    className="w-full border-2 border-dashed border-gray-300 text-gray-400 rounded-xl py-3 text-sm hover:border-blue-400 hover:text-blue-500 transition-colors">
-                    + 토너먼트 경기 추가
-                  </button>
-                )}
+                ))}
               </div>
             )}
           </div>
         )}
 
-        {/* 순위 탭 */}
-        {tab === 'standings' && (
-          <div className="bg-white rounded-xl shadow overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-gray-500 font-medium">순위</th>
-                  <th className="px-4 py-3 text-left text-gray-500 font-medium">이름</th>
-                  <th className="px-4 py-3 text-right text-gray-500 font-medium">적중</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(board.standings ?? []).map((s, i) => (
-                  <tr key={s.participant_name} className={`border-t ${s.participant_name === myName ? 'bg-blue-50' : ''}`}>
-                    <td className="px-4 py-3 font-bold text-gray-400">{i + 1}</td>
-                    <td className="px-4 py-3 font-medium text-gray-800">
-                      {s.participant_name}
-                      {s.participant_name === myName && <span className="ml-1 text-xs text-blue-500">(나)</span>}
-                    </td>
-                    <td className="px-4 py-3 text-right font-bold text-green-600">{s.correct_count}회</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <div className="h-4" />
       </div>
     </div>
   )
