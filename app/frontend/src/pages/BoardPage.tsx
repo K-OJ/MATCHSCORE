@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from 'react'
-import { getBoard, addMatch } from '../api/rooms'
+import { getBoard } from '../api/rooms'
 import type { BoardResponse } from '../types'
 import PrizeBanner from '../components/PrizeBanner'
 import MatchCard from '../components/MatchCard'
+import MatchSelector from '../components/MatchSelector'
 
 interface Props {
   roomCode: string
@@ -10,17 +11,6 @@ interface Props {
   isHost: boolean
 }
 
-// 2026 FIFA 월드컵 대한민국 경기 일정
-const WORLD_CUP_SCHEDULE = [
-  { stage: '조별리그', opponent: '우루과이', match_date: '2026-06-12 11:00 KST' },
-  { stage: '조별리그', opponent: '볼리비아', match_date: '2026-06-17 08:00 KST' },
-  { stage: '조별리그', opponent: '체코',    match_date: '2026-06-22 05:00 KST' },
-  { stage: '32강',  opponent: '',          match_date: '2026-07-01' },
-  { stage: '16강',  opponent: '',          match_date: '2026-07-06' },
-  { stage: '8강',   opponent: '',          match_date: '2026-07-11' },
-  { stage: '4강',   opponent: '',          match_date: '2026-07-15' },
-  { stage: '결승',  opponent: '',          match_date: '2026-07-19' },
-]
 
 export default function BoardPage({ roomCode, myName, isHost }: Props) {
   const [board, setBoard] = useState<BoardResponse | null>(null)
@@ -45,26 +35,6 @@ export default function BoardPage({ roomCode, myName, isHost }: Props) {
     const interval = setInterval(fetchBoard, 5000)
     return () => clearInterval(interval)
   }, [fetchBoard])
-
-  const isMatchAdded = (s: typeof WORLD_CUP_SCHEDULE[0]) => {
-    const matches = board?.matches ?? []
-    if (s.stage === '조별리그') return matches.some(m => m.opponent === s.opponent)
-    return matches.some(m => m.stage === s.stage)
-  }
-
-  const handleAddMatch = async (s: typeof WORLD_CUP_SCHEDULE[0]) => {
-    const opponent = s.opponent || pendingOpponents[s.stage]?.trim()
-    if (!opponent) return
-    setAddLoading(s.stage)
-    setAddError('')
-    try {
-      await addMatch(roomCode, opponent, s.match_date, s.stage)
-      setPendingOpponents(p => { const n = { ...p }; delete n[s.stage]; return n })
-      fetchBoard()
-    } catch {
-      setAddError(`${s.stage} 경기 추가에 실패했습니다.`)
-    } finally { setAddLoading('') }
-  }
 
   const handleCopyCode = () => {
     const url = `${window.location.origin}?room=${roomCode}`
@@ -156,52 +126,17 @@ export default function BoardPage({ roomCode, myName, isHost }: Props) {
                     <p className="text-sm font-bold text-white">2026 FIFA 월드컵 경기 추가</p>
                     <button onClick={() => setShowMatchSelector(false)} className="text-gray-500 hover:text-white text-xl leading-none px-1">✕</button>
                   </div>
-                  {(() => {
-                    const available = WORLD_CUP_SCHEDULE.filter(s => !isMatchAdded(s))
-                    if (available.length === 0) {
-                      return <p className="text-gray-500 text-sm text-center py-6">모든 경기가 추가되었습니다</p>
-                    }
-                    return (
-                      <div className="divide-y divide-white/5">
-                        {addError && <p className="text-red-400 text-xs px-4 py-2 bg-red-500/10">{addError}</p>}
-                        {available.map((s) => {
-                          const isTBD = !s.opponent
-                          const isAdding = addLoading === s.stage
-                          const canAdd = !isTBD || !!pendingOpponents[s.stage]?.trim()
-                          const stageColor = s.stage === '결승'
-                            ? 'bg-yellow-500/20 text-yellow-400'
-                            : 'bg-purple-500/20 text-purple-400'
-                          return (
-                            <div key={s.stage + s.opponent} className="px-4 py-3 space-y-2">
-                              <div className="flex items-center gap-2">
-                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${stageColor}`}>{s.stage}</span>
-                                {isTBD
-                                  ? <p className="text-xs text-gray-400 flex-1">🇰🇷 대한민국 vs <span className="text-gray-600">상대팀 미정</span></p>
-                                  : <p className="text-sm font-semibold text-white flex-1">🇰🇷 대한민국 vs {s.opponent}</p>
-                                }
-                                <span className="text-xs text-gray-600">{s.match_date}</span>
-                              </div>
-                              {isTBD && (
-                                <input
-                                  className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-green-400"
-                                  placeholder="상대팀 이름 입력 (예: 포르투갈)"
-                                  value={pendingOpponents[s.stage] ?? ''}
-                                  onChange={e => setPendingOpponents(p => ({ ...p, [s.stage]: e.target.value }))}
-                                  onKeyDown={e => { if (e.key === 'Enter' && canAdd) handleAddMatch(s) }}
-                                />
-                              )}
-                              <button
-                                onClick={() => handleAddMatch(s)}
-                                disabled={!!addLoading || !canAdd}
-                                className="w-full bg-green-500 hover:bg-green-400 disabled:bg-white/10 disabled:text-gray-500 disabled:cursor-not-allowed text-white text-sm font-bold py-2 rounded-lg transition-colors">
-                                {isAdding ? '추가 중...' : isTBD ? (canAdd ? '+ 추가하기' : '상대팀 입력 후 추가') : '+ 추가하기'}
-                              </button>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )
-                  })()}
+                  <MatchSelector
+                    board={board}
+                    roomCode={roomCode}
+                    pendingOpponents={pendingOpponents}
+                    setPendingOpponents={setPendingOpponents}
+                    addLoading={addLoading}
+                    setAddLoading={setAddLoading}
+                    addError={addError}
+                    setAddError={setAddError}
+                    onAdded={fetchBoard}
+                  />
                 </div>
               ) : (
                 <button onClick={() => setShowMatchSelector(true)}
