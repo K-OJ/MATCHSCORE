@@ -27,7 +27,8 @@ export default function BoardPage({ roomCode, myName, isHost }: Props) {
   const [tab, setTab] = useState<'matches' | 'standings'>('matches')
   const [showMatchSelector, setShowMatchSelector] = useState(false)
   const [pendingOpponents, setPendingOpponents] = useState<Record<string, string>>({})
-  const [addLoading, setAddLoading] = useState(false)
+  const [addLoading, setAddLoading] = useState<string>('') // 추가 중인 stage
+  const [addError, setAddError] = useState('')
   const [copied, setCopied] = useState(false)
 
   const fetchBoard = useCallback(async () => {
@@ -54,11 +55,15 @@ export default function BoardPage({ roomCode, myName, isHost }: Props) {
   const handleAddMatch = async (s: typeof WORLD_CUP_SCHEDULE[0]) => {
     const opponent = s.opponent || pendingOpponents[s.stage]?.trim()
     if (!opponent) return
-    setAddLoading(true)
+    setAddLoading(s.stage)
+    setAddError('')
     try {
       await addMatch(roomCode, opponent, s.match_date, s.stage)
+      setPendingOpponents(p => { const n = { ...p }; delete n[s.stage]; return n })
       fetchBoard()
-    } finally { setAddLoading(false) }
+    } catch {
+      setAddError(`${s.stage} 경기 추가에 실패했습니다.`)
+    } finally { setAddLoading('') }
   }
 
   const handleCopyCode = () => {
@@ -154,40 +159,43 @@ export default function BoardPage({ roomCode, myName, isHost }: Props) {
                   {(() => {
                     const available = WORLD_CUP_SCHEDULE.filter(s => !isMatchAdded(s))
                     if (available.length === 0) {
-                      return <p className="text-gray-500 text-sm text-center py-6">추가 가능한 경기가 없습니다</p>
+                      return <p className="text-gray-500 text-sm text-center py-6">모든 경기가 추가되었습니다</p>
                     }
                     return (
                       <div className="divide-y divide-white/5">
+                        {addError && <p className="text-red-400 text-xs px-4 py-2 bg-red-500/10">{addError}</p>}
                         {available.map((s) => {
                           const isTBD = !s.opponent
-                          const stageColor = s.stage === '조별리그'
-                            ? 'bg-blue-500/20 text-blue-400'
-                            : s.stage === '결승'
-                              ? 'bg-yellow-500/20 text-yellow-400'
-                              : 'bg-purple-500/20 text-purple-400'
+                          const isAdding = addLoading === s.stage
+                          const canAdd = !isTBD || !!pendingOpponents[s.stage]?.trim()
+                          const stageColor = s.stage === '결승'
+                            ? 'bg-yellow-500/20 text-yellow-400'
+                            : 'bg-purple-500/20 text-purple-400'
                           return (
                             <div key={s.stage + s.opponent} className="px-4 py-3 space-y-2">
                               <div className="flex items-center gap-2">
                                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${stageColor}`}>{s.stage}</span>
-                                {!isTBD && <p className="text-sm font-semibold text-white">🇰🇷 대한민국 vs {s.opponent}</p>}
-                                <p className="text-xs text-gray-500 ml-auto">{s.match_date}</p>
+                                {isTBD
+                                  ? <p className="text-xs text-gray-400 flex-1">🇰🇷 대한민국 vs <span className="text-gray-600">상대팀 미정</span></p>
+                                  : <p className="text-sm font-semibold text-white flex-1">🇰🇷 대한민국 vs {s.opponent}</p>
+                                }
+                                <span className="text-xs text-gray-600">{s.match_date}</span>
                               </div>
-                              <div className="flex gap-2">
-                                {isTBD && (
-                                  <input
-                                    className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-green-400"
-                                    placeholder="상대팀 입력 (예: 포르투갈)"
-                                    value={pendingOpponents[s.stage] ?? ''}
-                                    onChange={e => setPendingOpponents(p => ({ ...p, [s.stage]: e.target.value }))}
-                                  />
-                                )}
-                                <button
-                                  onClick={() => handleAddMatch(s)}
-                                  disabled={addLoading || (isTBD && !pendingOpponents[s.stage]?.trim())}
-                                  className={`${isTBD ? 'shrink-0' : 'w-full'} bg-green-500 hover:bg-green-400 disabled:bg-white/10 disabled:text-gray-500 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors`}>
-                                  {addLoading ? '추가 중...' : '+ 추가'}
-                                </button>
-                              </div>
+                              {isTBD && (
+                                <input
+                                  className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-green-400"
+                                  placeholder="상대팀 이름 입력 (예: 포르투갈)"
+                                  value={pendingOpponents[s.stage] ?? ''}
+                                  onChange={e => setPendingOpponents(p => ({ ...p, [s.stage]: e.target.value }))}
+                                  onKeyDown={e => { if (e.key === 'Enter' && canAdd) handleAddMatch(s) }}
+                                />
+                              )}
+                              <button
+                                onClick={() => handleAddMatch(s)}
+                                disabled={!!addLoading || !canAdd}
+                                className="w-full bg-green-500 hover:bg-green-400 disabled:bg-white/10 disabled:text-gray-500 disabled:cursor-not-allowed text-white text-sm font-bold py-2 rounded-lg transition-colors">
+                                {isAdding ? '추가 중...' : isTBD ? (canAdd ? '+ 추가하기' : '상대팀 입력 후 추가') : '+ 추가하기'}
+                              </button>
                             </div>
                           )
                         })}

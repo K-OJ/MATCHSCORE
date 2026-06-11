@@ -14,12 +14,14 @@ export default function App() {
 
   useEffect(() => {
     const code = new URLSearchParams(window.location.search).get('room')
-    if (code) setInitialCode(code.toUpperCase())
+    if (code && /^[A-Z0-9]{4,8}$/i.test(code)) setInitialCode(code.toUpperCase())
   }, [])
 
   const handleEnter = (roomCode: string, myName: string, isHost: boolean) => {
     setSession({ roomCode, myName, isHost })
-    window.history.replaceState(null, '', `?room=${roomCode}`)
+    if (roomCode && roomCode !== 'undefined') {
+      window.history.replaceState(null, '', `?room=${roomCode}`)
+    }
   }
 
   if (!session) {
