@@ -1,111 +1,104 @@
+import { useState } from 'react'
 import { addMatch } from '../api/rooms'
-import type { BoardResponse } from '../types'
 
-const WORLD_CUP_SCHEDULE = [
-  { stage: '조별리그', opponent: '우루과이', match_date: '2026-06-12 11:00 KST' },
-  { stage: '조별리그', opponent: '볼리비아', match_date: '2026-06-17 08:00 KST' },
-  { stage: '조별리그', opponent: '체코',    match_date: '2026-06-22 05:00 KST' },
-  { stage: '32강',   opponent: '',          match_date: '2026-07-01' },
-  { stage: '16강',   opponent: '',          match_date: '2026-07-06' },
-  { stage: '8강',    opponent: '',          match_date: '2026-07-11' },
-  { stage: '4강',    opponent: '',          match_date: '2026-07-15' },
-  { stage: '결승',   opponent: '',          match_date: '2026-07-19' },
-]
+const STAGES = ['조별리그', '32강', '16강', '8강', '4강', '결승']
 
 interface Props {
-  board: BoardResponse
   roomCode: string
-  pendingOpponents: Record<string, string>
-  setPendingOpponents: React.Dispatch<React.SetStateAction<Record<string, string>>>
-  addLoading: string
-  setAddLoading: (v: string) => void
-  addError: string
-  setAddError: (v: string) => void
   onAdded: () => void
+  onClose: () => void
 }
 
-export default function MatchSelector({
-  board, roomCode, pendingOpponents, setPendingOpponents,
-  addLoading, setAddLoading, addError, setAddError, onAdded,
-}: Props) {
-  const boardMatches = board.matches ?? []
+export default function MatchSelector({ roomCode, onAdded, onClose }: Props) {
+  const [stage, setStage] = useState('조별리그')
+  const [opponent, setOpponent] = useState('')
+  const [matchDate, setMatchDate] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
-  const isAdded = (stage: string, opponent: string) => {
-    if (stage === '조별리그') return boardMatches.some(m => m.opponent === opponent)
-    return boardMatches.some(m => m.stage === stage)
-  }
-
-  const available = WORLD_CUP_SCHEDULE.filter(s => !isAdded(s.stage, s.opponent))
-
-  const doAdd = async (stage: string, opponent: string, matchDate: string) => {
-    const opp = opponent.trim()
-    if (!opp) return
-    setAddLoading(stage)
-    setAddError('')
+  const handleAdd = async () => {
+    if (!opponent.trim() || !matchDate.trim()) {
+      setError('상대팀과 일시를 모두 입력해주세요.')
+      return
+    }
+    setLoading(true)
+    setError('')
     try {
-      await addMatch(roomCode, opp, matchDate, stage)
+      await addMatch(roomCode, opponent.trim(), matchDate.trim(), stage)
+      setOpponent('')
+      setMatchDate('')
       onAdded()
     } catch {
-      setAddError(stage + ' 경기 추가 실패. 다시 시도해주세요.')
+      setError('경기 추가에 실패했습니다.')
     } finally {
-      setAddLoading('')
+      setLoading(false)
     }
   }
 
-  if (available.length === 0) {
-    return <p className="text-gray-500 text-sm text-center py-6">모든 경기가 추가되었습니다</p>
-  }
-
   return (
-    <div className="divide-y divide-white/5">
-      {addError && (
-        <p className="text-red-400 text-xs px-4 py-2 bg-red-500/10">{addError}</p>
-      )}
-      {available.map((s) => {
-        const isTBD = s.opponent === ''
-        const inputVal = pendingOpponents[s.stage] ?? ''
-        const opp = isTBD ? inputVal.trim() : s.opponent
-        const isThis = addLoading === s.stage
-        const busy = addLoading !== ''
-        const stageColor = s.stage === '조별리그'
-          ? 'bg-blue-500/20 text-blue-400'
-          : s.stage === '결승'
-            ? 'bg-yellow-500/20 text-yellow-400'
-            : 'bg-purple-500/20 text-purple-400'
+    <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
+        <p className="text-sm font-bold text-white">경기 추가</p>
+        <button type="button" onClick={onClose} className="text-gray-500 hover:text-white text-xl leading-none px-1">✕</button>
+      </div>
 
-        return (
-          <div key={s.stage + s.opponent} className="px-4 py-3 space-y-2">
-            <div className="flex items-center gap-2">
-              <span className={`text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${stageColor}`}>
-                {s.stage}
-              </span>
-              <p className="text-sm font-semibold text-white flex-1">
-                🇰🇷 대한민국 vs {s.opponent || <span className="text-gray-500">상대팀 미정</span>}
-              </p>
-              <span className="text-xs text-gray-600 shrink-0">{s.match_date}</span>
-            </div>
-
-            {isTBD && (
-              <input
-                className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-green-400"
-                placeholder="상대팀 입력 (예: 포르투갈)"
-                value={inputVal}
-                onChange={e => setPendingOpponents(p => ({ ...p, [s.stage]: e.target.value }))}
-                onKeyDown={e => { if (e.key === 'Enter' && opp) doAdd(s.stage, opp, s.match_date) }}
-              />
-            )}
-
-            <button
-              type="button"
-              onClick={() => doAdd(s.stage, opp, s.match_date)}
-              disabled={busy || !opp}
-              className="w-full py-2 rounded-lg text-sm font-bold transition-colors bg-green-500 hover:bg-green-400 disabled:bg-white/10 disabled:text-gray-500"
-            >
-              {isThis ? '추가 중...' : (!isTBD || opp) ? '+ 추가하기' : '상대팀 입력 후 추가 가능'}
-            </button>
+      <div className="p-4 space-y-3">
+        {/* 단계 선택 */}
+        <div>
+          <p className="text-xs text-gray-500 mb-2">단계</p>
+          <div className="flex flex-wrap gap-1.5">
+            {STAGES.map(s => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setStage(s)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                  stage === s
+                    ? 'bg-green-500 text-white'
+                    : 'bg-white/10 text-gray-400 hover:bg-white/20'
+                }`}
+              >
+                {s}
+              </button>
+            ))}
           </div>
-        )
-      })}
+        </div>
+
+        {/* 상대팀 */}
+        <div>
+          <p className="text-xs text-gray-500 mb-1.5">상대팀</p>
+          <input
+            className="w-full bg-white/10 border border-white/10 rounded-xl px-3 py-2.5 text-white placeholder-gray-600 text-sm focus:outline-none focus:border-green-500"
+            placeholder="예: 포르투갈"
+            value={opponent}
+            onChange={e => setOpponent(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleAdd()}
+          />
+        </div>
+
+        {/* 경기 일시 */}
+        <div>
+          <p className="text-xs text-gray-500 mb-1.5">경기 일시</p>
+          <input
+            className="w-full bg-white/10 border border-white/10 rounded-xl px-3 py-2.5 text-white placeholder-gray-600 text-sm focus:outline-none focus:border-green-500"
+            placeholder="예: 2026-07-01 21:00 KST"
+            value={matchDate}
+            onChange={e => setMatchDate(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleAdd()}
+          />
+        </div>
+
+        {error && <p className="text-red-400 text-xs">{error}</p>}
+
+        <button
+          type="button"
+          onClick={handleAdd}
+          disabled={loading || !opponent.trim() || !matchDate.trim()}
+          className="w-full bg-green-500 hover:bg-green-400 disabled:bg-white/10 disabled:text-gray-500 text-white font-bold py-3 rounded-xl text-sm transition-colors"
+        >
+          {loading ? '추가 중...' : '+ 경기 추가'}
+        </button>
+      </div>
     </div>
   )
 }

@@ -6,17 +6,9 @@ from schemas import RoomCreate, RoomResponse, JoinRequest, ParticipantResponse
 
 router = APIRouter(prefix="/api/v1/rooms", tags=["rooms"])
 
-# 대한민국 2026 월드컵 조별리그 시드 데이터
-KOREA_GROUP_MATCHES = [
-    {"opponent": "우루과이", "match_date": "2026-06-12 11:00 KST", "stage": "조별리그", "order": 1},
-    {"opponent": "볼리비아", "match_date": "2026-06-17 08:00 KST", "stage": "조별리그", "order": 2},
-    {"opponent": "체코", "match_date": "2026-06-22 05:00 KST", "stage": "조별리그", "order": 3},
-]
-
 
 @router.post("", response_model=RoomResponse, status_code=201)
 def create_room(body: RoomCreate, db: Session = Depends(get_db)):
-    # 코드 충돌 방지용 루프
     for _ in range(10):
         code = generate_room_code()
         if not db.query(Room).filter(Room.code == code).first():
@@ -26,13 +18,8 @@ def create_room(body: RoomCreate, db: Session = Depends(get_db)):
     db.add(room)
     db.flush()
 
-    # 방장을 첫 번째 참가자로 등록
     host = Participant(room_id=room.id, name=body.host_name, is_host=True)
     db.add(host)
-
-    # 조별리그 3경기 시드
-    for m in KOREA_GROUP_MATCHES:
-        db.add(Match(room_id=room.id, **m))
 
     db.commit()
     db.refresh(room)

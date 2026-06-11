@@ -17,9 +17,6 @@ export default function BoardPage({ roomCode, myName, isHost }: Props) {
   const [board, setBoard] = useState<BoardResponse | null>(null)
   const [tab, setTab] = useState<'matches' | 'standings'>('matches')
   const [showMatchSelector, setShowMatchSelector] = useState(false)
-  const [pendingOpponents, setPendingOpponents] = useState<Record<string, string>>({})
-  const [addLoading, setAddLoading] = useState<string>('') // 추가 중인 stage
-  const [addError, setAddError] = useState('')
   const [copied, setCopied] = useState(false)
   const [selectedMatchId, setSelectedMatchId] = useState<number | null>(null)
 
@@ -147,23 +144,11 @@ export default function BoardPage({ roomCode, myName, isHost }: Props) {
 
             {isHost && (
               showMatchSelector ? (
-                <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
-                    <p className="text-sm font-bold text-white">2026 FIFA 월드컵 경기 추가</p>
-                    <button onClick={() => setShowMatchSelector(false)} className="text-gray-500 hover:text-white text-xl leading-none px-1">✕</button>
-                  </div>
-                  <MatchSelector
-                    board={board}
-                    roomCode={roomCode}
-                    pendingOpponents={pendingOpponents}
-                    setPendingOpponents={setPendingOpponents}
-                    addLoading={addLoading}
-                    setAddLoading={setAddLoading}
-                    addError={addError}
-                    setAddError={setAddError}
-                    onAdded={fetchBoard}
-                  />
-                </div>
+                <MatchSelector
+                  roomCode={roomCode}
+                  onAdded={fetchBoard}
+                  onClose={() => setShowMatchSelector(false)}
+                />
               ) : (
                 <button onClick={() => setShowMatchSelector(true)}
                   className="w-full border-2 border-dashed border-white/10 hover:border-green-500/50 text-gray-500 hover:text-green-400 rounded-2xl py-4 text-sm font-semibold transition-all">
