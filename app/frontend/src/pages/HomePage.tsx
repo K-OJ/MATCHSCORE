@@ -1,17 +1,22 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createRoom, joinRoom } from '../api/rooms'
 
 interface Props {
   onEnter: (code: string, name: string, isHost: boolean) => void
+  initialCode?: string
 }
 
-export default function HomePage({ onEnter }: Props) {
+export default function HomePage({ onEnter, initialCode = '' }: Props) {
   const [tab, setTab] = useState<'join' | 'create'>('join')
   const [name, setName] = useState('')
-  const [code, setCode] = useState('')
+  const [code, setCode] = useState(initialCode)
   const [betAmount, setBetAmount] = useState(5000)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (initialCode) setCode(initialCode)
+  }, [initialCode])
 
   const handleCreate = async () => {
     if (!name.trim()) return setError('이름을 입력해주세요.')

@@ -62,7 +62,8 @@ export default function BoardPage({ roomCode, myName, isHost }: Props) {
   }
 
   const handleCopyCode = () => {
-    navigator.clipboard.writeText(roomCode)
+    const url = `${window.location.origin}?room=${roomCode}`
+    navigator.clipboard.writeText(url)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -95,7 +96,7 @@ export default function BoardPage({ roomCode, myName, isHost }: Props) {
             <button onClick={handleCopyCode}
               className="flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl px-3 py-1.5 transition-all">
               <span className="font-mono font-black text-green-400 tracking-widest text-sm">{roomCode}</span>
-              <span className="text-gray-500 text-xs">{copied ? '복사됨' : '복사'}</span>
+              <span className="text-gray-500 text-xs">{copied ? '✓ 복사됨' : '링크 복사'}</span>
             </button>
             <div className="text-right">
               <p className="text-xs font-semibold text-white">{myName}</p>
@@ -148,49 +149,51 @@ export default function BoardPage({ roomCode, myName, isHost }: Props) {
                 <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
                   <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
                     <p className="text-sm font-bold text-white">2026 FIFA 월드컵 경기 추가</p>
-                    <button onClick={() => setShowMatchSelector(false)} className="text-gray-500 hover:text-white text-lg leading-none">✕</button>
+                    <button onClick={() => setShowMatchSelector(false)} className="text-gray-500 hover:text-white text-xl leading-none px-1">✕</button>
                   </div>
-                  <div className="divide-y divide-white/5">
-                    {WORLD_CUP_SCHEDULE.map((s) => {
-                      const added = isMatchAdded(s)
-                      const isTBD = !s.opponent
-                      const stageColor = s.stage === '조별리그'
-                        ? 'bg-blue-500/20 text-blue-400'
-                        : s.stage === '결승'
-                          ? 'bg-yellow-500/20 text-yellow-400'
-                          : 'bg-purple-500/20 text-purple-400'
-                      return (
-                        <div key={s.stage + s.opponent}
-                          className={`px-4 py-3 flex items-center gap-3 ${added ? 'opacity-40' : ''}`}>
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${stageColor}`}>{s.stage}</span>
-                          <div className="flex-1 min-w-0">
-                            {isTBD ? (
-                              <input
-                                className="w-full bg-white/10 border border-white/10 rounded-lg px-2 py-1 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-purple-400 disabled:opacity-40"
-                                placeholder="상대팀 입력 (예: 포르투갈)"
-                                disabled={added}
-                                value={pendingOpponents[s.stage] ?? ''}
-                                onChange={e => setPendingOpponents(p => ({ ...p, [s.stage]: e.target.value }))}
-                              />
-                            ) : (
-                              <p className="text-sm font-semibold text-white truncate">🇰🇷 대한민국 vs {s.opponent}</p>
-                            )}
-                            <p className="text-xs text-gray-500 mt-0.5">{s.match_date}</p>
-                          </div>
-                          {added ? (
-                            <span className="text-green-400 text-sm shrink-0">✓ 추가됨</span>
-                          ) : (
-                            <button
-                              onClick={() => handleAddMatch(s)}
-                              disabled={addLoading || (isTBD && !pendingOpponents[s.stage]?.trim())}
-                              className="shrink-0 bg-green-500 hover:bg-green-400 disabled:opacity-40 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors">
-                              추가
-                            </button>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
+                  {(() => {
+                    const available = WORLD_CUP_SCHEDULE.filter(s => !isMatchAdded(s))
+                    if (available.length === 0) {
+                      return <p className="text-gray-500 text-sm text-center py-6">추가 가능한 경기가 없습니다</p>
+                    }
+                    return (
+                      <div className="divide-y divide-white/5">
+                        {available.map((s) => {
+                          const isTBD = !s.opponent
+                          const stageColor = s.stage === '조별리그'
+                            ? 'bg-blue-500/20 text-blue-400'
+                            : s.stage === '결승'
+                              ? 'bg-yellow-500/20 text-yellow-400'
+                              : 'bg-purple-500/20 text-purple-400'
+                          return (
+                            <div key={s.stage + s.opponent} className="px-4 py-3 space-y-2">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${stageColor}`}>{s.stage}</span>
+                                {!isTBD && <p className="text-sm font-semibold text-white">🇰🇷 대한민국 vs {s.opponent}</p>}
+                                <p className="text-xs text-gray-500 ml-auto">{s.match_date}</p>
+                              </div>
+                              <div className="flex gap-2">
+                                {isTBD && (
+                                  <input
+                                    className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-green-400"
+                                    placeholder="상대팀 입력 (예: 포르투갈)"
+                                    value={pendingOpponents[s.stage] ?? ''}
+                                    onChange={e => setPendingOpponents(p => ({ ...p, [s.stage]: e.target.value }))}
+                                  />
+                                )}
+                                <button
+                                  onClick={() => handleAddMatch(s)}
+                                  disabled={addLoading || (isTBD && !pendingOpponents[s.stage]?.trim())}
+                                  className={`${isTBD ? 'shrink-0' : 'w-full'} bg-green-500 hover:bg-green-400 disabled:bg-white/10 disabled:text-gray-500 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors`}>
+                                  {addLoading ? '추가 중...' : '+ 추가'}
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )
+                  })()}
                 </div>
               ) : (
                 <button onClick={() => setShowMatchSelector(true)}
