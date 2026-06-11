@@ -41,7 +41,13 @@ sprint-close / hotfix-close agent 및 팀원이 항목 추가 시 아래 형식�
 
 ## 현재 배포 현황
 
-(초기 상태 — 스프린트/핫픽스 완료 후 sprint-close/hotfix-close agent가 업데이트합니다.)
+### Sprint 1 (2026-06-11)
+
+PR: docs/sprint/sprint1/pr-draft.md 참조 (원격 저장소 설정 후 실제 PR URL로 교체)
+
+- ⬜ sprint-review 에이전트 실행 (코드 리뷰 + 자동 검증)
+- ⬜ docker compose up --build (수동 스테이징 검증)
+- ⬜ 원격 저장소 설정 후 실제 PR 생성 (`gh pr create --base develop --head sprint1`)
 
 ---
 
