@@ -4,6 +4,7 @@ import type { BoardResponse } from '../types'
 import PrizeBanner from '../components/PrizeBanner'
 import MatchCard from '../components/MatchCard'
 import MatchSelector from '../components/MatchSelector'
+import MatchDetailPage from './MatchDetailPage'
 
 interface Props {
   roomCode: string
@@ -20,6 +21,7 @@ export default function BoardPage({ roomCode, myName, isHost }: Props) {
   const [addLoading, setAddLoading] = useState<string>('') // 추가 중인 stage
   const [addError, setAddError] = useState('')
   const [copied, setCopied] = useState(false)
+  const [selectedMatchId, setSelectedMatchId] = useState<number | null>(null)
 
   const fetchBoard = useCallback(async () => {
     try {
@@ -60,6 +62,24 @@ export default function BoardPage({ roomCode, myName, isHost }: Props) {
         </div>
       </div>
     )
+  }
+
+  // 경기 상세 뷰
+  if (selectedMatchId !== null) {
+    const match = (board.matches ?? []).find(m => m.id === selectedMatchId)
+    if (match) {
+      return (
+        <MatchDetailPage
+          roomCode={roomCode}
+          match={match}
+          board={board}
+          myName={myName}
+          isHost={isHost}
+          onBack={() => setSelectedMatchId(null)}
+          onUpdated={fetchBoard}
+        />
+      )
+    }
   }
 
   return (
@@ -118,12 +138,10 @@ export default function BoardPage({ roomCode, myName, isHost }: Props) {
             {(board.matches ?? []).map(match => (
               <MatchCard
                 key={match.id}
-                roomCode={roomCode}
                 match={match}
                 predictions={board.predictions ?? []}
                 myName={myName}
-                isHost={isHost}
-                onUpdated={fetchBoard}
+                onClick={() => setSelectedMatchId(match.id)}
               />
             ))}
 
